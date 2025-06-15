@@ -16,11 +16,13 @@
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
     import {
-      getFirestore,
-      doc,
-      setDoc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      getDatabase,
+      ref,
+      set,
+      push,
+      get,
+      child
+    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB3D8sfEXhHHFFySCl7YVqdn0WhjUVJqWw",
@@ -35,23 +37,20 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-    const db = getFirestore(app);
+    const db = getDatabase(app);
 
     let currentUser = null;
-    let dataKey = "";
     let items = [];
 
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUser = user;
-        dataKey = `user_${user.uid}`;
         document.getElementById("userInfo").innerText = `Halo, ${user.displayName}`;
         document.getElementById("authArea").classList.add("hidden");
         document.getElementById("mainArea").classList.remove("hidden");
         await loadData();
       } else {
         currentUser = null;
-        dataKey = "";
         document.getElementById("userInfo").innerText = "";
         document.getElementById("authArea").classList.remove("hidden");
         document.getElementById("mainArea").classList.add("hidden");
@@ -71,10 +70,10 @@
     };
 
     async function loadData() {
-      const docRef = doc(db, "shoppingLists", dataKey);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        items = docSnap.data().items || [];
+      const uid = currentUser.uid;
+      const snapshot = await get(child(ref(db), `shoppingLists/${uid}`));
+      if (snapshot.exists()) {
+        items = snapshot.val() || [];
       } else {
         items = [];
       }
@@ -82,8 +81,8 @@
     }
 
     async function saveData() {
-      const docRef = doc(db, "shoppingLists", dataKey);
-      await setDoc(docRef, { items });
+      const uid = currentUser.uid;
+      await set(ref(db, `shoppingLists/${uid}`), items);
     }
 
     window.addItem = async function () {
