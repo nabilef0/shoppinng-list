@@ -2,10 +2,9 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shopping List</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
     import {
@@ -19,7 +18,6 @@
       getDatabase,
       ref,
       set,
-      push,
       get,
       child
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
@@ -89,15 +87,17 @@
       const name = document.getElementById("itemName").value.trim();
       const price = parseFloat(document.getElementById("itemPrice").value);
       const category = document.getElementById("itemCategory").value.trim();
+      const description = document.getElementById("itemDescription").value.trim();
       if (!name || isNaN(price)) return;
 
-      items.push({ name, price, category });
+      items.push({ name, price, category, description });
       await saveData();
       renderList();
 
       document.getElementById("itemName").value = "";
       document.getElementById("itemPrice").value = "";
       document.getElementById("itemCategory").value = "";
+      document.getElementById("itemDescription").value = "";
     };
 
     window.renderList = function () {
@@ -111,51 +111,36 @@
         if (filter && item.category.toLowerCase() !== filter) return;
 
         const li = document.createElement("li");
-        li.className = "bg-gray-200 p-3 rounded flex justify-between items-center";
+        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
 
-        const left = document.createElement("div");
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
 
-        const nameInput = document.createElement("input");
-        nameInput.value = item.name;
-        nameInput.className = "bg-transparent font-semibold w-32";
-        nameInput.onchange = async () => {
-          items[index].name = nameInput.value;
-          await saveData();
-        };
-
-        const priceInput = document.createElement("input");
-        priceInput.type = "number";
-        priceInput.value = item.price;
-        priceInput.className = "bg-transparent w-24 ml-2";
-        priceInput.onchange = async () => {
-          items[index].price = parseFloat(priceInput.value);
-          await saveData();
-          renderList();
-        };
-
-        const catSpan = document.createElement("span");
-        if (item.category) {
-          catSpan.textContent = `(${item.category})`;
-          catSpan.className = "ml-2 text-sm text-gray-600";
+        const desc = document.createElement("div");
+        if (item.description) {
+          if (item.description.startsWith("http")) {
+            desc.innerHTML = `<a href="${item.description}" target="_blank" class="text-blue-600 underline text-sm">${item.description}</a>`;
+          } else {
+            desc.innerText = item.description;
+            desc.className = "text-sm text-gray-500";
+          }
         }
 
-        left.appendChild(nameInput);
-        left.appendChild(priceInput);
-        left.appendChild(catSpan);
+        info.appendChild(title);
+        if (item.description) info.appendChild(desc);
 
-        const right = document.createElement("div");
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
-        delBtn.className = "text-red-500 font-bold ml-4 hover:text-red-700";
+        delBtn.className = "text-red-500 font-bold mt-2 sm:mt-0 sm:ml-4 hover:text-red-700 self-end";
         delBtn.onclick = async () => {
           items.splice(index, 1);
           await saveData();
           renderList();
         };
 
-        right.appendChild(delBtn);
-        li.appendChild(left);
-        li.appendChild(right);
+        li.appendChild(info);
+        li.appendChild(delBtn);
         listEl.appendChild(li);
 
         total += parseFloat(item.price);
@@ -189,20 +174,20 @@
         </div>
       </div>
 
-      <div class="space-y-3">
-        <input id="itemName" type="text" placeholder="Nama barang" class="w-full border p-2 rounded" />
-        <input id="itemPrice" type="number" placeholder="Harga" class="w-full border p-2 rounded" />
-        <input id="itemCategory" type="text" placeholder="Kategori (misal: Makanan)" class="w-full border p-2 rounded" />
-        <button onclick="addItem()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full">Tambah</button>
+      <div class="grid gap-2 sm:grid-cols-2 mb-4">
+        <input id="itemName" type="text" placeholder="Nama barang" class="border p-2 rounded" />
+        <input id="itemPrice" type="number" placeholder="Harga" class="border p-2 rounded" />
+        <input id="itemCategory" type="text" placeholder="Kategori" class="border p-2 rounded" />
+        <input id="itemDescription" type="text" placeholder="Deskripsi atau Link" class="border p-2 rounded" />
+        <button onclick="addItem()" class="col-span-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Tambah</button>
       </div>
 
-      <div class="mt-6">
+      <div class="mb-4">
         <label for="filterCategory" class="block mb-1 text-sm">Filter kategori:</label>
-        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Semua / Makanan / Minuman..." class="w-full border p-2 rounded mb-4" />
+        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
       </div>
 
       <ul id="shoppingList" class="space-y-2"></ul>
-
       <div class="text-lg font-semibold mt-4">Total: Rp <span id="totalPrice">0</span></div>
       <button onclick="clearAll()" class="mt-4 w-full bg-red-600 text-white p-2 rounded hover:bg-red-700">Hapus Semua</button>
     </div>
