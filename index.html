@@ -27,7 +27,7 @@
       authDomain: "shopping-list-c261f.firebaseapp.com",
       databaseURL: "https://shopping-list-c261f-default-rtdb.firebaseio.com",
       projectId: "shopping-list-c261f",
-      storageBucket: "shopping-list-c261f.appspot.com",
+      storageBucket: "shopping-list-c261f.firebasestorage.app",
       messagingSenderId: "103318344059",
       appId: "1:103318344059:web:8c63c26212addf5054adde"
     };
@@ -70,7 +70,11 @@
     async function loadData() {
       const uid = currentUser.uid;
       const snapshot = await get(child(ref(db), `shoppingLists/${uid}`));
-      items = snapshot.exists() ? snapshot.val() || [] : [];
+      if (snapshot.exists()) {
+        items = snapshot.val() || [];
+      } else {
+        items = [];
+      }
       renderList();
     }
 
@@ -90,66 +94,41 @@
       await saveData();
       renderList();
 
-      ["itemName", "itemPrice", "itemCategory", "itemDescription"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("itemName").value = "";
+      document.getElementById("itemPrice").value = "";
+      document.getElementById("itemCategory").value = "";
+      document.getElementById("itemDescription").value = "";
     };
 
     window.renderList = function () {
-      const filterText = document.getElementById("filterCategory").value.trim().toLowerCase();
+      const filter = document.getElementById("filterCategory").value.trim().toLowerCase();
       const listEl = document.getElementById("shoppingList");
       const totalEl = document.getElementById("totalPrice");
       listEl.innerHTML = "";
       let total = 0;
 
       items.forEach((item, index) => {
-        if (
-          filterText &&
-          !(item.name.toLowerCase().includes(filterText) || item.category.toLowerCase().includes(filterText))
-        ) return;
+        if (filter && item.category.toLowerCase() !== filter) return;
 
         const li = document.createElement("li");
         li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
 
         const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
 
-        const title = document.createElement("input");
-        title.value = item.name;
-        title.className = "font-bold text-lg border-b w-full sm:w-auto";
-        title.onchange = async () => {
-          item.name = title.value.trim();
-          await saveData();
-        };
-
-        const priceInput = document.createElement("input");
-        priceInput.type = "number";
-        priceInput.value = item.price;
-        priceInput.className = "text-gray-800 border-b w-full sm:w-auto";
-        priceInput.onchange = async () => {
-          item.price = parseFloat(priceInput.value);
-          await saveData();
-          renderList();
-        };
-
-        const categoryInput = document.createElement("input");
-        categoryInput.value = item.category || "";
-        categoryInput.className = "text-sm text-gray-500 border-b w-full sm:w-auto";
-        categoryInput.onchange = async () => {
-          item.category = categoryInput.value.trim();
-          await saveData();
-          renderList();
-        };
-
-        const descInput = document.createElement("input");
-        descInput.value = item.description || "";
-        descInput.className = "text-sm text-gray-500 border-b w-full sm:w-auto";
-        descInput.onchange = async () => {
-          item.description = descInput.value.trim();
-          await saveData();
-        };
+        const desc = document.createElement("div");
+        if (item.description) {
+          if (item.description.startsWith("http")) {
+            desc.innerHTML = `<a href="${item.description}" target="_blank" class="text-blue-600 underline text-sm">${item.description}</a>`;
+          } else {
+            desc.innerText = item.description;
+            desc.className = "text-sm text-gray-500";
+          }
+        }
 
         info.appendChild(title);
-        info.appendChild(priceInput);
-        info.appendChild(categoryInput);
-        info.appendChild(descInput);
+        if (item.description) info.appendChild(desc);
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
@@ -204,7 +183,7 @@
       </div>
 
       <div class="mb-4">
-        <label for="filterCategory" class="block mb-1 text-sm">Filter nama atau kategori:</label>
+        <label for="filterCategory" class="block mb-1 text-sm">Filter kategori:</label>
         <input id="filterCategory" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
       </div>
 
