@@ -27,7 +27,7 @@
       authDomain: "shopping-list-c261f.firebaseapp.com",
       databaseURL: "https://shopping-list-c261f-default-rtdb.firebaseio.com",
       projectId: "shopping-list-c261f",
-      storageBucket: "shopping-list-c261f.firebasestorage.app",
+      storageBucket: "shopping-list-c261f.appspot.com",
       messagingSenderId: "103318344059",
       appId: "1:103318344059:web:8c63c26212addf5054adde"
     };
@@ -90,73 +90,78 @@
       await saveData();
       renderList();
 
-      document.getElementById("itemName").value = "";
-      document.getElementById("itemPrice").value = "";
-      document.getElementById("itemCategory").value = "";
-      document.getElementById("itemDescription").value = "";
+      ["itemName", "itemPrice", "itemCategory", "itemDescription"].forEach(id => document.getElementById(id).value = "");
     };
 
     window.renderList = function () {
-      const filter = document.getElementById("filterCategory").value.trim().toLowerCase();
+      const filterText = document.getElementById("filterCategory").value.trim().toLowerCase();
       const listEl = document.getElementById("shoppingList");
       const totalEl = document.getElementById("totalPrice");
       listEl.innerHTML = "";
       let total = 0;
 
       items.forEach((item, index) => {
-        const matchFilter =
-          !filter ||
-          item.category?.toLowerCase().includes(filter) ||
-          item.name?.toLowerCase().includes(filter);
-
-        if (!matchFilter) return;
+        if (
+          filterText &&
+          !(item.name.toLowerCase().includes(filterText) || item.category.toLowerCase().includes(filterText))
+        ) return;
 
         const li = document.createElement("li");
-        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center gap-2";
+        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
 
         const info = document.createElement("div");
-        info.className = "flex-1";
 
-        const title = document.createElement("div");
-        title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
+        const title = document.createElement("input");
+        title.value = item.name;
+        title.className = "font-bold text-lg border-b w-full sm:w-auto";
+        title.onchange = async () => {
+          item.name = title.value.trim();
+          await saveData();
+        };
 
-        const desc = document.createElement("div");
-        if (item.description) {
-          if (item.description.startsWith("http")) {
-            desc.innerHTML = `<a href="${item.description}" target="_blank" class="text-blue-600 underline text-sm">${item.description}</a>`;
-          } else {
-            desc.innerText = item.description;
-            desc.className = "text-sm text-gray-500";
-          }
-        }
+        const priceInput = document.createElement("input");
+        priceInput.type = "number";
+        priceInput.value = item.price;
+        priceInput.className = "text-gray-800 border-b w-full sm:w-auto";
+        priceInput.onchange = async () => {
+          item.price = parseFloat(priceInput.value);
+          await saveData();
+          renderList();
+        };
+
+        const categoryInput = document.createElement("input");
+        categoryInput.value = item.category || "";
+        categoryInput.className = "text-sm text-gray-500 border-b w-full sm:w-auto";
+        categoryInput.onchange = async () => {
+          item.category = categoryInput.value.trim();
+          await saveData();
+          renderList();
+        };
+
+        const descInput = document.createElement("input");
+        descInput.value = item.description || "";
+        descInput.className = "text-sm text-gray-500 border-b w-full sm:w-auto";
+        descInput.onchange = async () => {
+          item.description = descInput.value.trim();
+          await saveData();
+        };
 
         info.appendChild(title);
-        if (item.description) info.appendChild(desc);
-
-        const btnArea = document.createElement("div");
-        btnArea.className = "flex gap-2 mt-2 sm:mt-0";
+        info.appendChild(priceInput);
+        info.appendChild(categoryInput);
+        info.appendChild(descInput);
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
-        delBtn.className = "text-red-500 font-bold hover:text-red-700";
+        delBtn.className = "text-red-500 font-bold mt-2 sm:mt-0 sm:ml-4 hover:text-red-700 self-end";
         delBtn.onclick = async () => {
           items.splice(index, 1);
           await saveData();
           renderList();
         };
 
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "✎";
-        editBtn.className = "text-blue-500 font-bold hover:text-blue-700";
-        editBtn.onclick = () => {
-          renderEditForm(index, li);
-        };
-
-        btnArea.appendChild(editBtn);
-        btnArea.appendChild(delBtn);
-
         li.appendChild(info);
-        li.appendChild(btnArea);
+        li.appendChild(delBtn);
         listEl.appendChild(li);
 
         total += parseFloat(item.price);
@@ -164,64 +169,6 @@
 
       totalEl.textContent = total.toLocaleString("id-ID");
     };
-
-    function renderEditForm(index, li) {
-      const item = items[index];
-      li.innerHTML = "";
-
-      const nameInput = document.createElement("input");
-      nameInput.value = item.name;
-      nameInput.className = "border p-1 rounded w-full mb-2";
-
-      const priceInput = document.createElement("input");
-      priceInput.type = "number";
-      priceInput.value = item.price;
-      priceInput.className = "border p-1 rounded w-full mb-2";
-
-      const descInput = document.createElement("input");
-      descInput.value = item.description || "";
-      descInput.placeholder = "Deskripsi atau link";
-      descInput.className = "border p-1 rounded w-full mb-2";
-
-      const actionRow = document.createElement("div");
-      actionRow.className = "flex gap-2";
-
-      const saveBtn = document.createElement("button");
-      saveBtn.textContent = "💾 Simpan";
-      saveBtn.className = "bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700";
-      saveBtn.onclick = async () => {
-        const newName = nameInput.value.trim();
-        const newPrice = parseFloat(priceInput.value);
-        const newDesc = descInput.value.trim();
-
-        if (!newName || isNaN(newPrice)) {
-          alert("Nama dan harga harus valid!");
-          return;
-        }
-
-        items[index].name = newName;
-        items[index].price = newPrice;
-        items[index].description = newDesc;
-
-        await saveData();
-        renderList();
-      };
-
-      const cancelBtn = document.createElement("button");
-      cancelBtn.textContent = "Batal";
-      cancelBtn.className = "bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500";
-      cancelBtn.onclick = () => {
-        renderList();
-      };
-
-      actionRow.appendChild(saveBtn);
-      actionRow.appendChild(cancelBtn);
-
-      li.appendChild(nameInput);
-      li.appendChild(priceInput);
-      li.appendChild(descInput);
-      li.appendChild(actionRow);
-    }
 
     window.clearAll = async function () {
       if (confirm("Yakin ingin menghapus semua item?")) {
@@ -257,8 +204,8 @@
       </div>
 
       <div class="mb-4">
-        <label for="filterCategory" class="block mb-1 text-sm">Filter kategori/nama:</label>
-        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Cari berdasarkan nama atau kategori..." class="w-full border p-2 rounded" />
+        <label for="filterCategory" class="block mb-1 text-sm">Filter nama atau kategori:</label>
+        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
       </div>
 
       <ul id="shoppingList" class="space-y-2"></ul>
