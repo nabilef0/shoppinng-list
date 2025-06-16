@@ -8,10 +8,18 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
     import {
-      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
     import {
-      getDatabase, ref, set, get, child
+      getDatabase,
+      ref,
+      set,
+      get,
+      child
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
     const firebaseConfig = {
@@ -62,11 +70,7 @@
     async function loadData() {
       const uid = currentUser.uid;
       const snapshot = await get(child(ref(db), `shoppingLists/${uid}`));
-      if (snapshot.exists()) {
-        items = snapshot.val() || [];
-      } else {
-        items = [];
-      }
+      items = snapshot.exists() ? snapshot.val() : [];
       renderList();
     }
 
@@ -96,17 +100,23 @@
       const filter = document.getElementById("filterCategory").value.trim().toLowerCase();
       const listEl = document.getElementById("shoppingList");
       const totalEl = document.getElementById("totalPrice");
+      const categorySet = new Set();
+
       listEl.innerHTML = "";
       let total = 0;
 
       items.forEach((item, index) => {
+        categorySet.add(item.category);
+
         if (filter && item.category.toLowerCase() !== filter) return;
 
         const li = document.createElement("li");
-        li.className = "bg-white border p-4 rounded shadow-sm flex flex-col space-y-2";
+        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
 
         const info = document.createElement("div");
-        info.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
+
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
 
         const desc = document.createElement("div");
         if (item.description) {
@@ -118,54 +128,64 @@
           }
         }
 
-        const btnRow = document.createElement("div");
-        btnRow.className = "flex justify-end gap-2";
+        info.appendChild(title);
+        if (item.description) info.appendChild(desc);
+
+        const btnGroup = document.createElement("div");
+        btnGroup.className = "flex gap-2 mt-2 sm:mt-0 sm:ml-4";
 
         const editBtn = document.createElement("button");
         editBtn.textContent = "✏️";
-        editBtn.className = "text-yellow-500 hover:text-yellow-700 text-sm";
-        editBtn.onclick = () => showEditForm(index);
+        editBtn.className = "text-blue-500 font-bold hover:text-blue-700";
+        editBtn.onclick = async () => {
+          const newName = prompt("Nama baru:", item.name);
+          if (!newName) return;
+
+          const newPrice = prompt("Harga baru:", item.price);
+          if (isNaN(newPrice)) return;
+
+          const newCategory = prompt("Kategori baru:", item.category);
+          const newDesc = prompt("Deskripsi baru:", item.description);
+
+          items[index] = {
+            name: newName.trim(),
+            price: parseFloat(newPrice),
+            category: newCategory.trim(),
+            description: newDesc.trim()
+          };
+          await saveData();
+          renderList();
+        };
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
-        delBtn.className = "text-red-500 hover:text-red-700 font-bold text-sm";
+        delBtn.className = "text-red-500 font-bold hover:text-red-700";
         delBtn.onclick = async () => {
           items.splice(index, 1);
           await saveData();
           renderList();
         };
 
-        btnRow.appendChild(editBtn);
-        btnRow.appendChild(delBtn);
+        btnGroup.appendChild(editBtn);
+        btnGroup.appendChild(delBtn);
 
         li.appendChild(info);
-        if (item.description) li.appendChild(desc);
-        li.appendChild(btnRow);
+        li.appendChild(btnGroup);
         listEl.appendChild(li);
 
         total += parseFloat(item.price);
       });
 
       totalEl.textContent = total.toLocaleString("id-ID");
-    };
 
-    window.showEditForm = function (index) {
-      const item = items[index];
-      const name = prompt("Ubah Nama Barang:", item.name);
-      if (name === null) return;
-
-      const priceStr = prompt("Ubah Harga (angka):", item.price);
-      const price = parseFloat(priceStr);
-      if (isNaN(price)) return alert("Harga tidak valid!");
-
-      const category = prompt("Ubah Kategori:", item.category);
-      if (category === null) return;
-
-      const description = prompt("Ubah Deskripsi/Link:", item.description);
-      if (description === null) return;
-
-      items[index] = { name: name.trim(), price, category: category.trim(), description: description.trim() };
-      saveData().then(renderList);
+      // update datalist dropdown kategori
+      const datalist = document.getElementById("categoryOptions");
+      datalist.innerHTML = "";
+      [...categorySet].forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        datalist.appendChild(option);
+      });
     };
 
     window.clearAll = async function () {
@@ -196,14 +216,15 @@
       <div class="grid gap-2 sm:grid-cols-2 mb-4">
         <input id="itemName" type="text" placeholder="Nama barang" class="border p-2 rounded" />
         <input id="itemPrice" type="number" placeholder="Harga" class="border p-2 rounded" />
-        <input id="itemCategory" type="text" placeholder="Kategori" class="border p-2 rounded" />
+        <input id="itemCategory" list="categoryOptions" type="text" placeholder="Kategori" class="border p-2 rounded" />
+        <datalist id="categoryOptions"></datalist>
         <input id="itemDescription" type="text" placeholder="Deskripsi atau Link" class="border p-2 rounded" />
         <button onclick="addItem()" class="col-span-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Tambah</button>
       </div>
 
       <div class="mb-4">
         <label for="filterCategory" class="block mb-1 text-sm">Filter kategori:</label>
-        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
+        <input id="filterCategory" list="categoryOptions" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
       </div>
 
       <ul id="shoppingList" class="space-y-2"></ul>
