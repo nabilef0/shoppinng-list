@@ -70,11 +70,7 @@
     async function loadData() {
       const uid = currentUser.uid;
       const snapshot = await get(child(ref(db), `shoppingLists/${uid}`));
-      if (snapshot.exists()) {
-        items = snapshot.val() || [];
-      } else {
-        items = [];
-      }
+      items = snapshot.exists() ? snapshot.val() || [] : [];
       renderList();
     }
 
@@ -108,12 +104,19 @@
       let total = 0;
 
       items.forEach((item, index) => {
-        if (filter && item.category.toLowerCase() !== filter) return;
+        const matchFilter =
+          !filter ||
+          item.category?.toLowerCase().includes(filter) ||
+          item.name?.toLowerCase().includes(filter);
+
+        if (!matchFilter) return;
 
         const li = document.createElement("li");
-        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
+        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center gap-2";
 
         const info = document.createElement("div");
+        info.className = "flex-1";
+
         const title = document.createElement("div");
         title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
 
@@ -130,17 +133,30 @@
         info.appendChild(title);
         if (item.description) info.appendChild(desc);
 
+        const btnArea = document.createElement("div");
+        btnArea.className = "flex gap-2 mt-2 sm:mt-0";
+
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
-        delBtn.className = "text-red-500 font-bold mt-2 sm:mt-0 sm:ml-4 hover:text-red-700 self-end";
+        delBtn.className = "text-red-500 font-bold hover:text-red-700";
         delBtn.onclick = async () => {
           items.splice(index, 1);
           await saveData();
           renderList();
         };
 
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✎";
+        editBtn.className = "text-blue-500 font-bold hover:text-blue-700";
+        editBtn.onclick = () => {
+          renderEditForm(index, li);
+        };
+
+        btnArea.appendChild(editBtn);
+        btnArea.appendChild(delBtn);
+
         li.appendChild(info);
-        li.appendChild(delBtn);
+        li.appendChild(btnArea);
         listEl.appendChild(li);
 
         total += parseFloat(item.price);
@@ -148,6 +164,64 @@
 
       totalEl.textContent = total.toLocaleString("id-ID");
     };
+
+    function renderEditForm(index, li) {
+      const item = items[index];
+      li.innerHTML = "";
+
+      const nameInput = document.createElement("input");
+      nameInput.value = item.name;
+      nameInput.className = "border p-1 rounded w-full mb-2";
+
+      const priceInput = document.createElement("input");
+      priceInput.type = "number";
+      priceInput.value = item.price;
+      priceInput.className = "border p-1 rounded w-full mb-2";
+
+      const descInput = document.createElement("input");
+      descInput.value = item.description || "";
+      descInput.placeholder = "Deskripsi atau link";
+      descInput.className = "border p-1 rounded w-full mb-2";
+
+      const actionRow = document.createElement("div");
+      actionRow.className = "flex gap-2";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "💾 Simpan";
+      saveBtn.className = "bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700";
+      saveBtn.onclick = async () => {
+        const newName = nameInput.value.trim();
+        const newPrice = parseFloat(priceInput.value);
+        const newDesc = descInput.value.trim();
+
+        if (!newName || isNaN(newPrice)) {
+          alert("Nama dan harga harus valid!");
+          return;
+        }
+
+        items[index].name = newName;
+        items[index].price = newPrice;
+        items[index].description = newDesc;
+
+        await saveData();
+        renderList();
+      };
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.textContent = "Batal";
+      cancelBtn.className = "bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500";
+      cancelBtn.onclick = () => {
+        renderList();
+      };
+
+      actionRow.appendChild(saveBtn);
+      actionRow.appendChild(cancelBtn);
+
+      li.appendChild(nameInput);
+      li.appendChild(priceInput);
+      li.appendChild(descInput);
+      li.appendChild(actionRow);
+    }
 
     window.clearAll = async function () {
       if (confirm("Yakin ingin menghapus semua item?")) {
@@ -183,8 +257,8 @@
       </div>
 
       <div class="mb-4">
-        <label for="filterCategory" class="block mb-1 text-sm">Filter kategori:</label>
-        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Contoh: Makanan" class="w-full border p-2 rounded" />
+        <label for="filterCategory" class="block mb-1 text-sm">Filter kategori/nama:</label>
+        <input id="filterCategory" type="text" oninput="renderList()" placeholder="Cari berdasarkan nama atau kategori..." class="w-full border p-2 rounded" />
       </div>
 
       <ul id="shoppingList" class="space-y-2"></ul>
