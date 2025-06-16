@@ -8,18 +8,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
     import {
-      getAuth,
-      GoogleAuthProvider,
-      signInWithPopup,
-      signOut,
-      onAuthStateChanged
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
     import {
-      getDatabase,
-      ref,
-      set,
-      get,
-      child
+      getDatabase, ref, set, get, child
     } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
     const firebaseConfig = {
@@ -27,7 +19,7 @@
       authDomain: "shopping-list-c261f.firebaseapp.com",
       databaseURL: "https://shopping-list-c261f-default-rtdb.firebaseio.com",
       projectId: "shopping-list-c261f",
-      storageBucket: "shopping-list-c261f.firebasestorage.app",
+      storageBucket: "shopping-list-c261f.appspot.com",
       messagingSenderId: "103318344059",
       appId: "1:103318344059:web:8c63c26212addf5054adde"
     };
@@ -111,11 +103,10 @@
         if (filter && item.category.toLowerCase() !== filter) return;
 
         const li = document.createElement("li");
-        li.className = "bg-white border p-4 rounded shadow-sm flex justify-between items-start flex-col sm:flex-row sm:items-center";
+        li.className = "bg-white border p-4 rounded shadow-sm flex flex-col space-y-2";
 
         const info = document.createElement("div");
-        const title = document.createElement("div");
-        title.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
+        info.innerHTML = `<strong>${item.name}</strong> - Rp${item.price.toLocaleString("id-ID")} ${item.category ? `(${item.category})` : ""}`;
 
         const desc = document.createElement("div");
         if (item.description) {
@@ -127,26 +118,54 @@
           }
         }
 
-        info.appendChild(title);
-        if (item.description) info.appendChild(desc);
+        const btnRow = document.createElement("div");
+        btnRow.className = "flex justify-end gap-2";
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✏️";
+        editBtn.className = "text-yellow-500 hover:text-yellow-700 text-sm";
+        editBtn.onclick = () => showEditForm(index);
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "✕";
-        delBtn.className = "text-red-500 font-bold mt-2 sm:mt-0 sm:ml-4 hover:text-red-700 self-end";
+        delBtn.className = "text-red-500 hover:text-red-700 font-bold text-sm";
         delBtn.onclick = async () => {
           items.splice(index, 1);
           await saveData();
           renderList();
         };
 
+        btnRow.appendChild(editBtn);
+        btnRow.appendChild(delBtn);
+
         li.appendChild(info);
-        li.appendChild(delBtn);
+        if (item.description) li.appendChild(desc);
+        li.appendChild(btnRow);
         listEl.appendChild(li);
 
         total += parseFloat(item.price);
       });
 
       totalEl.textContent = total.toLocaleString("id-ID");
+    };
+
+    window.showEditForm = function (index) {
+      const item = items[index];
+      const name = prompt("Ubah Nama Barang:", item.name);
+      if (name === null) return;
+
+      const priceStr = prompt("Ubah Harga (angka):", item.price);
+      const price = parseFloat(priceStr);
+      if (isNaN(price)) return alert("Harga tidak valid!");
+
+      const category = prompt("Ubah Kategori:", item.category);
+      if (category === null) return;
+
+      const description = prompt("Ubah Deskripsi/Link:", item.description);
+      if (description === null) return;
+
+      items[index] = { name: name.trim(), price, category: category.trim(), description: description.trim() };
+      saveData().then(renderList);
     };
 
     window.clearAll = async function () {
